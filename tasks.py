@@ -1,7 +1,7 @@
 import shutil
 from pathlib import Path
 from robocorp.tasks import task
-from robocorp import browser
+from robocorp import browser, workitems
 from playwright.sync_api import expect
 from RPA.HTTP import HTTP
 from RPA.PDF import PDF
@@ -9,6 +9,8 @@ from RPA.Tables import Tables, Table
 
 RETRIES = 15
 TIMEOUT = 1000
+
+# v0.1
 
 
 @task
@@ -24,6 +26,10 @@ def order_robots_from_RobotSpareBin():
     # browser.configure(
     #     slowmo=200,
     # )
+    workitems.outputs.create({"item": "test"})
+    for item in workitems.inputs:
+        item.fail("BUSINESS", "test", "Test thing")
+
     open_robot_order_website()
     close_annoying_modal()
     orders = get_orders()
@@ -31,6 +37,17 @@ def order_robots_from_RobotSpareBin():
         fill_the_form(order)
 
     archive_receipts()
+
+
+def user_input_task():
+    assistant = Assistant()
+    assistant.add_heading("Input from user")
+    assistant.add_text_input("text_input", placeholder="Please enter URL")
+    assistant.add_submit_buttons("Submit", default="Submit")
+    result = assistant.run_dialog()
+    url = result.text_input
+    print("printti--", url)
+    browser.goto(url)
 
 
 def get_orders() -> Table:
