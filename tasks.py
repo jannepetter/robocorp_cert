@@ -1,16 +1,44 @@
 import shutil
 from pathlib import Path
 from robocorp.tasks import task
-from robocorp import browser, workitems
+from robocorp import browser, workitems, vault, storage
 from playwright.sync_api import expect
 from RPA.HTTP import HTTP
 from RPA.PDF import PDF
 from RPA.Tables import Tables, Table
+from cryptography.fernet import Fernet
+import json
+import base64
 
 RETRIES = 15
 TIMEOUT = 1000
 
 # v0.1
+
+# getting and setting assets as json
+# asset = storage.get_json("test_asset")
+# asset["oho"] = True
+# storage.set_json("test_asset", asset)
+
+
+def demo_encrypt_decrypt():
+    """
+    Demo for encrypt decrypt data and store it in the asset
+    """
+    data = {"name": "robot", "task": "encrypt", "status": True}
+
+    key = "secretss" * 4  # 32 length required for Fernet
+
+    print("key--", key)
+    enc = encrypt_data(data, key)
+
+    print("encrypted--", enc)
+    storage.set_bytes("enc_asset", enc)
+
+    data_from_storage = storage.get_bytes("enc_asset")
+
+    dec = decrypt_data(data_from_storage, key)
+    print("decrypted--", dec)
 
 
 @task
@@ -22,13 +50,10 @@ def order_robots_from_RobotSpareBin():
     Embeds the screenshot of the robot to the PDF receipt.
     Creates ZIP archive of the receipts and the images.
     """
-
-    # browser.configure(
-    #     slowmo=200,
-    # )
-    workitems.outputs.create({"item": "test"})
-    for item in workitems.inputs:
-        item.fail("BUSINESS", "test", "Test thing")
+    demo_encrypt_decrypt()
+    browser.configure(
+        slowmo=200,
+    )
 
     open_robot_order_website()
     close_annoying_modal()
@@ -39,15 +64,15 @@ def order_robots_from_RobotSpareBin():
     archive_receipts()
 
 
-def user_input_task():
-    assistant = Assistant()
-    assistant.add_heading("Input from user")
-    assistant.add_text_input("text_input", placeholder="Please enter URL")
-    assistant.add_submit_buttons("Submit", default="Submit")
-    result = assistant.run_dialog()
-    url = result.text_input
-    print("printti--", url)
-    browser.goto(url)
+# def user_input_task():
+#     assistant = Assistant()
+#     assistant.add_heading("Input from user")
+#     assistant.add_text_input("text_input", placeholder="Please enter URL")
+#     assistant.add_submit_buttons("Submit", default="Submit")
+#     result = assistant.run_dialog()
+#     url = result.text_input
+#     print("printti--", url)
+#     browser.goto(url)
 
 
 def get_orders() -> Table:
@@ -164,3 +189,30 @@ def archive_receipts():
     archive_path = shutil.make_archive("output/receipts_archive", "zip", pdfs_dir)
 
     return archive_path
+
+
+def encrypt_data(data: dict, key: str) -> bytes:
+    """
+    Encrypt data.
+    """
+    key_bytes = base64.b64encode(key.encode("utf-8"))
+
+    f = Fernet(key_bytes)
+    data_bytes = json.dumps(data).encode("utf-8")
+    encrypted_data = f.encrypt(data_bytes)
+
+    return base64.b64encode(encrypted_data)
+
+
+def decrypt_data(data_enc: bytes, key: str) -> dict:
+    """
+    Decrypt data.
+    """
+    key_bytes = base64.b64encode(key.encode("utf-8"))
+
+    f = Fernet(key_bytes)
+    decoded_bytes = base64.b64decode(data_enc)
+    decrypted_bytes = f.decrypt(decoded_bytes)
+    data = json.loads(decrypted_bytes)
+
+    return data
